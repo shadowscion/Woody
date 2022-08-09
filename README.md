@@ -1,4 +1,5 @@
 # Woody
 Turn props into... wood!
 
-Really it just makes them damageable and spawns gibs when they are broken. 
+# Description
+Wood wars is cool but there aren't enough wood props, this tool just makes any prop damageable and spawns gibs where and when they are destroyed or removed.
