@@ -1,14 +1,21 @@
 
-include( "woody/woodylib.lua" )
+if SERVER then include( "woody/woodylib.lua" ) end
 
 TOOL.Category = "Render"
 TOOL.Name     = "#tool.woodytool.name"
 TOOL.Command  = nil
 
+local select_class, select_baseclass = {}, {}
+select_class.prop_physics = true
+select_baseclass.primitive_base = true
+
+
 if CLIENT then
 
     TOOL.ClientConVar = {
         health = 100,
+        radius = 100,
+        filter = "",
     }
 
     TOOL.Information = {
@@ -39,7 +46,46 @@ if CLIENT then
 
 
     function TOOL.BuildCPanel( self )
-        local slider = self:NumSlider( "Prop Health", "woodytool_health", 0, 50000, 0 )
+
+        local panel = vgui.Create( "DForm" )
+        panel:SetName( "Prop Settings" )
+        self:AddPanel( panel )
+
+        local slider = panel:NumSlider( "Prop Health", "woodytool_health", 0, 50000, 0 )
+
+
+        local panel = vgui.Create( "DForm" )
+        panel:SetName( "Tool Settings" )
+        self:AddPanel( panel )
+
+        local slider = panel:NumSlider( "Selection Radius", "woodytool_radius", 0, 50000, 0 )
+
+        --[[
+        local combo = vgui.Create( "DComboBox", panel )
+        panel:AddItem( combo )
+
+        local id = combo:SetText( "Selection filters..." )
+        combo:SetSortItems( false )
+
+        local choices = {}
+        local function onChoose() end
+
+        for k, v in SortedPairs( select_class ) do
+            local id = combo:AddChoice( k, onChoose, nil )
+            choices[id] = k
+        end
+        for k, v in SortedPairs( select_baseclass ) do
+            local id = combo:AddChoice( k, onChoose, nil )
+            choices[id] = k
+        end
+
+        combo.OnSelect = function( _, id, value, func )
+            combo:SetText( "Selection filters..." )
+            if isfunction( func ) then
+                func( id, value, true )
+            end
+        end
+        ]]
     end
 
 
@@ -50,19 +96,19 @@ if CLIENT then
 
         local pos  = tr.Entity:GetPos():ToScreen()
 
+        local health = math.abs( tr.Entity:Health() )
+        local maxHealth = math.abs( math.max( 1, tr.Entity:GetMaxHealth() ) )
+
+        surface.SetFont( "Default" )
         surface.SetTextPos( pos.x, pos.y )
         surface.SetTextColor( 255, 255, 255 )
-        surface.DrawText( string.format( "%d/%d", tr.Entity:Health(), tr.Entity:GetMaxHealth() ) )
+        surface.DrawText( string.format( "Health: %d/%d", health, maxHealth ) )
     end
 
 else
 
     TOOL.selection = {}
     TOOL.selectColor = Color( 125, 255, 125, 125 )
-
-    local select_class, select_baseclass = {}, {}
-    select_class.prop_physics = true
-
 
     function TOOL:Select( ent )
         if not self.selection then
@@ -127,7 +173,7 @@ else
         if not tr.Hit then return false end
 
         if self:GetOwner():KeyDown( IN_SPEED ) then
-            for _, ent in pairs( ents.FindInSphere( tr.HitPos, 1000 ) ) do
+            for _, ent in pairs( ents.FindInSphere( tr.HitPos, self:GetClientNumber( "radius" ) ) ) do
                 self:Select( ent )
             end
         else

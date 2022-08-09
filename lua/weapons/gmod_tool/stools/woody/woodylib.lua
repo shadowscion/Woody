@@ -5,32 +5,13 @@ woody = woody or {}
 local woody = woody
 
 woody.maxHealth = 50000
-woody.minHealth = 0
-
-
-----
-function woody.applyDamage( ent, filter )
-    local health = ent:Health() - filter:GetDamage()
-
-    if health <= 0 then
-        ent:Remove()
-    else
-        ent:SetHealth( health )
-    end
-end
-
-hook.Add( "EntityTakeDamage", "Woody_Breakable", function( ent, filter )
-    if not IsValid( ent ) or not filter then return end
-    if not ent.OnDieFunctions or not ent.OnDieFunctions.Woody_CreateGibs then return end
-
-    woody.applyDamage( ent, filter )
-end )
+woody.minHealth = 1
 
 
 ----
 local zero = Vector()
 
-local function createGibber()
+function woody.createGibber()
     if IsValid( woody.gibber ) then
         return woody.gibber
     end
@@ -49,10 +30,10 @@ local function breakAt( gibber, pos, force )
     gibber:GibBreakClient( force )
 end
 
-local function createGibs( ent )
+function woody.createGibs( ent, filter )
     if not IsValid( ent ) then return end
 
-    local gibber = createGibber()
+    local gibber = woody.createGibber()
 
     if IsValid( gibber ) then
         local vel = ent:GetVelocity()
@@ -67,8 +48,32 @@ end
 
 
 ----
+function woody.applyDamage( ent, filter )
+    local health = ent:Health() - filter:GetDamage()
+
+    if health <= 0 then
+        woody.createGibs( ent, filter )
+        ent:Remove()
+    else
+        ent:SetHealth( health )
+    end
+end
+
+hook.Add( "EntityTakeDamage", "Woody_Breakable", function( ent, filter )
+    if not ent or not ent.IsWoody or not IsValid( ent ) then return end
+    woody.applyDamage( ent, filter )
+end )
+
+
+----
 woody.applyModifier = function( ply, ent, data )
-    ent:CallOnRemove( "Woody_CreateGibs", createGibs )
+    ent.IsWoody = true
+    ent:SetNW2Bool( "IsWoody", true )
+
+    local physobj = ent:GetPhysicsObject()
+    if IsValid( physobj ) then
+        physobj:SetMaterial( "wood" )
+    end
 
     if tonumber( data.health ) then
         data.health = math.Clamp( tonumber( data.health ), woody.minHealth, woody.maxHealth )
@@ -79,8 +84,6 @@ woody.applyModifier = function( ply, ent, data )
     if data.dupe then
         duplicator.StoreEntityModifier( ent, "Woody_Dupe", { type = data.type, health = data.health } )
     end
-
-    ent:SetNW2Bool( "IsWoody", true )
 end
 
 duplicator.RegisterEntityModifier( "Woody_Dupe", function( ply, ent, data )
